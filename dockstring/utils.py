@@ -275,9 +275,9 @@ def refine_mol_with_ff(mol, max_iters=1000) -> Chem.Mol:
 
 def check_obabel_install() -> None:
     """Check that openbabel is installed correctly and has the correct version"""
-    cmd_args = ['bash', '-i', '-c', 'obabel -V']
+    cmd_args = ['-i', '-c', 'obabel -V']
     cmd_return = subprocess.run(
-        cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, executable='/bin/bash')
     stdout = cmd_return.stdout.decode('utf-8').strip()
 
     if cmd_return.returncode != 0:
@@ -285,7 +285,7 @@ def check_obabel_install() -> None:
 
     # Example: Open Babel 3.1.0 -- Oct 12 2020 -- 14:17:21
     expected_version = 'Open Babel 3.1'
-    if not stdout.startswith(expected_version):
+    if expected_version not in stdout:
         raise DockingError("The obabel test command succeeded but the version doesn't seem to match. " +
                            expected_version + ' required.')
 
@@ -300,7 +300,6 @@ def convert_pdbqt_to_pdb(pdbqt_file: PathType, pdb_file: PathType, disable_bondi
     """
     # yapf: disable
     cmd_args = [
-        'bash',
         '-i',
         '-c',
         f'obabel -ipdbqt {pdbqt_file} -opdb -O {pdb_file} {"-ab" if disable_bonding else ""}',
@@ -308,7 +307,7 @@ def convert_pdbqt_to_pdb(pdbqt_file: PathType, pdb_file: PathType, disable_bondi
     # yapf: enable
 
     cmd_return = subprocess.run(
-        cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, executable='/bin/bash')
     stdout = cmd_return.stdout.decode('utf-8')
     logging.debug(stdout)
 
@@ -344,8 +343,9 @@ def protonate_smiles(smiles: str, pH: float) -> str:
     """
 
     # cmd list format raises errors, therefore one string
-    cmd = ['bash', '-i', '-c', f'obabel -:"{smiles}" -ismi -ocan -p{pH}']
-    cmd_return = subprocess.run(cmd, capture_output=True, shell=True)
+    cmd = ['-i', '-c', f'obabel -:"{smiles}" -ismi -ocan -p{pH}']
+    cmd_return = subprocess.run(
+        cmd, capture_output=True, shell=True, executable='/bin/bash')
     output = cmd_return.stdout.decode('utf-8')
     logging.debug(output)
 
@@ -364,14 +364,13 @@ def convert_mol_file_to_pdbqt(mol_file: PathType, pdbqt_file: PathType) -> None:
     """
     # yapf: disable
     cmd_list = [
-        'bash',
         '-i',
         '-c',
         f'obabel -imol {mol_file} -opdbqt -O {pdbqt_file} --partialcharge gasteiger',
     ]
     # yapf: enable
     cmd_return = subprocess.run(
-        cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, executable='/bin/bash')
     output = cmd_return.stdout.decode('utf-8')
     logging.debug(output)
 
