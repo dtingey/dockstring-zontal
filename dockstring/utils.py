@@ -44,7 +44,8 @@ def setup_logger(level: Union[int, str] = logging.INFO, path: Optional[str] = No
     logger = logging.getLogger("dockstring")
     logger.setLevel(level)
 
-    formatter = logging.Formatter('%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter = logging.Formatter(
+        '%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
     ch = logging.StreamHandler(stream=sys.stdout)
     ch.setFormatter(formatter)
@@ -170,7 +171,8 @@ def check_charges(mol: Chem.Mol) -> None:
     """Log warning if there are on formal charges on atoms other than N or O."""
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() != 0 and atom.GetAtomicNum() != 7 and atom.GetAtomicNum() != 8:
-            logging.warning('Molecule contains charged atom that is not N or O - careful!')
+            logging.warning(
+                'Molecule contains charged atom that is not N or O - careful!')
 
 
 def check_mol(mol: Chem.Mol) -> None:
@@ -178,7 +180,8 @@ def check_mol(mol: Chem.Mol) -> None:
     # Check that there aren't any hydrogen atoms left in the RDKit.Mol
     no_hs = all(atom.GetAtomicNum() != 1 for atom in mol.GetAtoms())
     if not no_hs:
-        raise SanityError("Cannot process molecule: hydrogen atoms couldn't be removed")
+        raise SanityError(
+            "Cannot process molecule: hydrogen atoms couldn't be removed")
 
     # No radicals
     if NumRadicalElectrons(mol) != 0:
@@ -187,7 +190,8 @@ def check_mol(mol: Chem.Mol) -> None:
     # Check that the molecule consists of only one fragment
     fragments = Chem.GetMolFrags(mol)
     if len(fragments) != 1:
-        raise SanityError(f'Incorrect number of molecular fragments ({len(fragments)})')
+        raise SanityError(
+            f'Incorrect number of molecular fragments ({len(fragments)})')
 
 
 def embed_mol(mol: Chem.Mol, seed: int, attempt_factor=10) -> Chem.Mol:
@@ -202,7 +206,8 @@ def embed_mol(mol: Chem.Mol, seed: int, attempt_factor=10) -> Chem.Mol:
     # Add hydrogen atoms in order to get a sensible 3D structure
     mol = Chem.AddHs(mol)
     # RDKit default for maxAttempts: 10 x number of atoms
-    Chem.EmbedMolecule(mol, randomSeed=seed, maxAttempts=attempt_factor * mol.GetNumAtoms())
+    Chem.EmbedMolecule(mol, randomSeed=seed,
+                       maxAttempts=attempt_factor * mol.GetNumAtoms())
     # If not a single conformation is obtained in all the attempts, raise an error
     if mol.GetNumConformers() == 0:
         raise EmbeddingError('Generation of ligand conformation failed')
@@ -219,7 +224,8 @@ def run_mmff94_opt(mol: Chem.Mol, max_iters: int) -> Chem.Mol:
     """
     opt_mol = copy.copy(mol)
     Chem.MMFFSanitizeMolecule(opt_mol)
-    opt_result = Chem.MMFFOptimizeMolecule(opt_mol, mmffVariant='MMFF94', maxIters=max_iters)
+    opt_result = Chem.MMFFOptimizeMolecule(
+        opt_mol, mmffVariant='MMFF94', maxIters=max_iters)
     if opt_result != 0:
         raise StructureOptimizationError('MMFF optimization of ligand failed')
 
@@ -254,21 +260,24 @@ def refine_mol_with_ff(mol, max_iters=1000) -> Chem.Mol:
         try:
             opt_mol = run_mmff94_opt(mol, max_iters=max_iters)
         except Chem.rdchem.KekulizeException as exception:
-            logging.info(f'Ligand optimization with MMFF94 failed: {exception}, trying UFF')
+            logging.info(
+                f'Ligand optimization with MMFF94 failed: {exception}, trying UFF')
             opt_mol = run_uff_opt(mol, max_iters=max_iters)
     elif Chem.UFFHasAllMoleculeParams(mol):
         opt_mol = run_uff_opt(mol, max_iters=max_iters)
 
     else:
-        raise StructureOptimizationError('Cannot optimize ligand: parameters not available')
+        raise StructureOptimizationError(
+            'Cannot optimize ligand: parameters not available')
 
     return opt_mol
 
 
 def check_obabel_install() -> None:
     """Check that openbabel is installed correctly and has the correct version"""
-    cmd_args = ['obabel', '-V']
-    cmd_return = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    cmd_args = ['bash', '-i', '-c', 'obabel -V']
+    cmd_return = subprocess.run(
+        cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout = cmd_return.stdout.decode('utf-8').strip()
 
     if cmd_return.returncode != 0:
@@ -291,19 +300,15 @@ def convert_pdbqt_to_pdb(pdbqt_file: PathType, pdb_file: PathType, disable_bondi
     """
     # yapf: disable
     cmd_args = [
-        'obabel',
-        '-ipdbqt', pdbqt_file,
-        '-opdb',
-        '-O', pdb_file,
+        'bash',
+        '-i',
+        '-c',
+        f'obabel -ipdbqt {pdbqt_file} -opdb -O {pdb_file} {"-ab" if disable_bonding else ""}',
     ]
     # yapf: enable
 
-    if disable_bonding:
-        # "a" = read option
-        # "b" = disable automatic bonding
-        cmd_args += ['-ab']
-
-    cmd_return = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    cmd_return = subprocess.run(
+        cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout = cmd_return.stdout.decode('utf-8')
     logging.debug(stdout)
 
@@ -323,7 +328,8 @@ def protonate_mol(mol: Chem.Mol, pH: float) -> Chem.Mol:
     protonated_smiles = protonate_smiles(smiles, pH=pH)
     mol = Chem.MolFromSmiles(protonated_smiles)
     if not mol:
-        raise ProtonationError(f'Cannot read protonated SMILES: {protonated_smiles}')
+        raise ProtonationError(
+            f'Cannot read protonated SMILES: {protonated_smiles}')
 
     return mol
 
@@ -338,7 +344,7 @@ def protonate_smiles(smiles: str, pH: float) -> str:
     """
 
     # cmd list format raises errors, therefore one string
-    cmd = f'obabel -:"{smiles}" -ismi -ocan -p{pH}'
+    cmd = ['bash', '-i', '-c', f'obabel -:"{smiles}" -ismi -ocan -p{pH}']
     cmd_return = subprocess.run(cmd, capture_output=True, shell=True)
     output = cmd_return.stdout.decode('utf-8')
     logging.debug(output)
@@ -358,14 +364,14 @@ def convert_mol_file_to_pdbqt(mol_file: PathType, pdbqt_file: PathType) -> None:
     """
     # yapf: disable
     cmd_list = [
-        'obabel',
-        '-imol', mol_file,
-        '-opdbqt',
-        '-O', pdbqt_file,
-        '--partialcharge', 'gasteiger'
+        'bash',
+        '-i',
+        '-c',
+        f'obabel -imol {mol_file} -opdbqt -O {pdbqt_file} --partialcharge gasteiger',
     ]
     # yapf: enable
-    cmd_return = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    cmd_return = subprocess.run(
+        cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output = cmd_return.stdout.decode('utf-8')
     logging.debug(output)
 
@@ -394,7 +400,8 @@ def write_mol_to_mol_file(mol: Chem.Mol, mol_file: PathType) -> None:
     :param mol_file: Mol output path
     """
     if mol.GetNumConformers() < 1:
-        raise OutputError('For conversion to MDL MOL format a conformer is required')
+        raise OutputError(
+            'For conversion to MDL MOL format a conformer is required')
     Chem.MolToMolFile(mol, filename=str(mol_file))
 
 
@@ -454,7 +461,8 @@ def verify_docked_ligand(ref: Chem.Mol, subject: Chem.Mol) -> None:
 
 
 real_number_pattern = r'[-+]?[0-9]*\.?[0-9]+(e[-+]?[0-9]+)?'
-score_re = re.compile(rf'REMARK VINA RESULT:\s*(?P<affinity>{real_number_pattern})')
+score_re = re.compile(
+    rf'REMARK VINA RESULT:\s*(?P<affinity>{real_number_pattern})')
 
 
 def parse_affinities_from_output(output_file: PathType) -> List[float]:
@@ -469,7 +477,8 @@ def parse_affinities_from_output(output_file: PathType) -> List[float]:
     return [float(match.group('affinity')) for match in score_re.finditer(content)]
 
 
-conf_re = re.compile(rf'^(?P<key>\w+)\s*=\s*(?P<value>{real_number_pattern})\s*\n$')
+conf_re = re.compile(
+    rf'^(?P<key>\w+)\s*=\s*(?P<value>{real_number_pattern})\s*\n$')
 
 
 def parse_search_box_conf(conf_file: PathType) -> Dict[str, float]:
